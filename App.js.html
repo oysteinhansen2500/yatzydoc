@@ -1,0 +1,1761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: App.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: App.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, {Component, useState} from 'react';
+import logo from './logo.svg';
+import {
+  Button,
+  Form,
+  FormGroup,
+  FormControl,
+  ControlLabel,
+  Navbar,
+  Table,
+  ListGroup,
+  Row,
+  Col
+} from "react-bootstrap";
+import {Image} from 'react-bootstrap';
+import Container from 'react-bootstrap/Container';
+import DropdownButton from 'react-bootstrap/DropdownButton';
+import Nav from 'react-bootstrap/Nav';
+import Card from 'react-bootstrap/Card'
+import CardGroup from 'react-bootstrap/CardGroup'
+import 'bootstrap/dist/css/bootstrap.css';
+import './App.css';
+import styles from './App.css';
+import ReactDOM from 'react-dom';
+import {BrowserRouter, Switch, Route, Link, Redirect} from "react-router-dom";
+import {useParams} from 'react-router';
+import {NavLink} from 'react-router-dom';
+import Cookies from 'universal-cookie';
+import bcrypt from 'bcryptjs';
+import openSocket from 'socket.io-client';
+
+const socket = openSocket('http://87.248.16.163:15004');
+const cookies = new Cookies();
+
+class Home extends Component {
+
+  state = {
+    response: '',
+    post: '',
+    responseToPost: '',
+    timestamp: ''
+  };
+
+  /*
+testSocket(){
+  console.log("testing");
+  socket.emit('sockettest', "HAHAHAHA");
+  socket.on('sockettest', test5 => console.log(test5));
+}*/
+  /* subscribeToTimer(cb) {
+socket.emit('test', "test2");
+socket.on('test', test => console.log(test));
+socket.on('timer', timestamp => cb(null, timestamp));
+socket.emit('subscribeToTimer', 1000);
+} */
+  handleInputChange = (event) => {
+    const {value, name} = event.target;
+    this.setState({[name]: value});
+  }
+  onSubmit = (event) => {
+    event.preventDefault();
+    fetch('http://87.248.16.163:15004/api/authenticate', {
+      method: 'POST',
+      body: JSON.stringify(this.state),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    }).then(res => {
+      if (res.status === 200) {
+
+        this.props.history.push('/');
+      } else {
+        const error = new Error(res.error);
+        throw error;
+      }
+    }).catch(err => {
+      console.error(err);
+      alert('Error logging in please try again');
+    });
+  }
+
+  output = [];
+
+  componentDidMount() {
+
+    this.callApi().then(res => {
+      this.setState({response: res});
+
+    }).catch(err => console.log(err));
+
+    this.logState();
+  }
+
+  callApi = async () => {
+
+    const response = await fetch('http://87.248.16.163:15004/ping');
+
+    const body = await response.json();
+    if (response.status !== 200)
+      throw Error(body.message);
+
+    console.log(body);
+    return body;
+  };
+
+  logState = async () => {
+    console.log("state:", this.state.response);
+  }
+
+  handleSubmit = async e => {
+    e.preventDefault();
+    const response = await fetch('http://87.248.16.163:15004/api/world', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({post: this.state.post})
+    });
+    const body = await response.text();
+
+    this.setState({responseToPost: body});
+  };
+
+  render() {
+    if (!this.state.response) {
+      return (&lt;p>response was empty&lt;/p>)
+    } else {
+      return (&lt;div>
+        &lt;Button onClick={this.testSocket}>&lt;/Button>
+        &lt;form onSubmit={this.onSubmit}>
+          &lt;h1>Login Below!&lt;/h1>
+          &lt;input type="email" name="email" placeholder="Enter email" value={this.state.email} onChange={this.handleInputChange} required="required"/>
+          &lt;input type="password" name="password" placeholder="Enter password" value={this.state.password} onChange={this.handleInputChange} required="required"/>
+          &lt;input type="submit" value="Submit"/>
+        &lt;/form>
+        &lt;ul>
+          {
+            this.state.response.map(username => {
+              return (&lt;li key={username.username}>{username.username}&lt;/li>)
+            })
+          }
+          &lt;li key={this.state.response[1].username}>{this.state.response[1].username}&lt;/li>
+
+        &lt;/ul>
+      &lt;/div>);
+    }
+
+  }
+}
+/**
+* @component
+* @example
+*
+* (This class (component) handles the user id and renders a change password page)
+ */
+class ChangePassword extends Component {
+
+  handleInputChange = (event) => {
+    const {value, name} = event.target;
+    this.setState({[name]: value});
+  }
+
+  onSubmit = (event) => {
+    event.preventDefault();
+
+    var newPass = bcrypt.hashSync(this.state.password, cookies.get('user').salt);
+    fetch(`http://87.248.16.163:15004/changePassword/${this.props.match.params.id}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({id: this.props.match.params.id, password: newPass})
+    }).then((response) => response.json()).then((messages) => {
+
+      this.props.history.push(messages.redirectUrl);
+      //this.props.history.push(`/gamelist/${this.props.match.params.id}`);
+    });
+
+  }
+
+  render() {
+    return (&lt;Card style={{
+        maxWidth: "35rem",
+        margin: "auto"
+      }}>
+      &lt;Navbar style={{
+          maxWidth: '35rem',
+          margin: "auto"
+        }} bg="light" expand="lg">
+        &lt;Navbar.Brand style={{
+            margin: "auto"
+          }} href="">Yatzy&lt;/Navbar.Brand>
+      &lt;/Navbar>
+      &lt;Form style={{
+          maxWidth: "80%",
+          margin: "auto"
+        }} onSubmit={this.onSubmit}>
+        &lt;Card.Title>Change your password&lt;/Card.Title>
+
+        &lt;Form.Group controlId="formBasicEmail">
+
+          &lt;Form.Control style={{
+              margin: "auto"
+            }} type="password" name="password" placeholder="Enter password" required="required" onChange={this.handleInputChange}/>
+
+        &lt;/Form.Group>
+
+        &lt;Button variant="primary" style={{}} type="submit" value="Submit">
+          Change Password
+        &lt;/Button>
+
+      &lt;/Form>
+
+    &lt;/Card>)
+  }
+}
+
+class LoginAuth extends Component {
+  state = {
+    password: '',
+    email: '',
+    salt: ''
+  }
+  errorCode = "";
+
+  /*componentDidMount() {
+    // Simple GET request using fetch
+
+    fetch(`/login/${this.props.match.params.id}`)
+        .then(response => response.json())
+        .then(data => this.setState({ salt: data.salt }));
+          console.log(this.state);
+}*/
+  componentDidMount() {
+
+    this.callApi().then(res => {
+      console.log("res:", res[0].salt);
+      this.setState({
+        salt: res[0].salt
+      }, function() {
+        this.forceUpdate();
+      });
+
+    }).catch(err => {
+      console.log("You do not have access to this gamelist");
+      var user = cookies.get('user');
+      console.log(err);
+
+
+      //  this.props.history.push(`/login/${this.props.match.params.id}`);
+      //    this.componentDidMount()
+
+    });
+
+
+  }
+
+  callApi = async () => {
+
+
+    const response = await fetch(`http://87.248.16.163:15004/login/${this.props.match.params.id}`);
+    if (response.status !== 200) {
+      throw Error(response.message);
+    }
+
+    const body = await response.json();
+    if (response.status !== 200)
+
+
+    return body;
+  };
+
+  handleInputChange = async (event) => {
+    const {value, name} = event.target;
+
+    await this.setState({[name]: value});
+
+  }
+
+  onSubmit = async (event) => {
+    event.preventDefault();
+
+
+    this.state.password = bcrypt.hashSync(this.state.password, this.state.salt);
+    fetch('http://87.248.16.163:15004/api/authenticate', {
+      method: 'POST',
+      body: JSON.stringify({email: this.state.email, password: this.state.password}),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    }).then((response) => response.json()).then((messages) => {
+
+      if (messages.redirectUrl) {
+        this.props.history.push(messages.redirectUrl);
+      }
+
+    }).catch(err => {
+      console.log(err);
+
+      var user = cookies.get('user');
+
+    });
+
+  }
+
+  render() {
+
+    return (&lt;div>
+
+      &lt;Container >
+        &lt;Navbar style={{
+            width: '35rem',
+            margin: "auto"
+          }} bg="light" expand="lg">
+          &lt;Navbar.Brand style={{
+              margin: "auto"
+            }} href="#home">Yatzy&lt;/Navbar.Brand>
+        &lt;/Navbar>
+        &lt;Card style={{
+            width: '35rem',
+            margin: "auto"
+          }}>
+
+          &lt;Form onSubmit={this.onSubmit} style={{
+              width: "80%",
+              margin: "auto"
+            }}>
+            &lt;Card.Title>Log in&lt;/Card.Title>
+            &lt;Form.Group controlId="formBasicEmail">
+
+              &lt;Form.Control type="email" style={{
+                  margin: "auto"
+                }} name="email" placeholder="Enter email" value={this.state.email} onChange={this.handleInputChange}/>
+
+            &lt;/Form.Group>
+            &lt;Form.Group controlId="formBasicEmail">
+
+              &lt;Form.Control style={{
+                  margin: "auto"
+                }} type="password" name="password" placeholder="Enter password" value={this.state.password} onChange={this.handleInputChange}/>
+
+            &lt;/Form.Group>
+
+            &lt;Button variant="primary" style={{
+                width: "20%"
+              }} type="submit" value="Submit">
+              Log in
+            &lt;/Button>
+            &lt;h6>{this.errorCode}&lt;/h6>
+
+          &lt;/Form>
+          &lt;Card.Header>
+
+            &lt;Nav className="mr-auto" style={{
+                justifyContent: "center"
+              }}>
+              &lt;Nav.Link href="/register" style={{
+                  textAlign: "center"
+                }}>Not a registered user? Click here to create your account&lt;/Nav.Link>
+            &lt;/Nav>
+
+          &lt;/Card.Header>
+        &lt;/Card>
+      &lt;/Container>
+
+    &lt;/div>);
+  }
+
+}
+/**
+@component
+@example
+This class (component) renders a login page and handles input changes in the input fields, as well as fetching the salt for the password and submitting the login to the server for validation
+*  handleInputChange = async (event) => {
+    const {value, name} = event.target;
+
+    await this.setState({[name]: value});
+
+  }
+  onSubmit = async (event) => {
+    event.preventDefault();
+
+    console.log(JSON.stringify({email: this.state.email}))
+    fetch('http://87.248.16.163:15004/api/login', {
+      method: 'POST',
+      body: JSON.stringify({email: this.state.email}),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    }).then((response) => response.json()).then((messages) => {
+
+      if (messages.length &lt; 1) {
+
+        this.errorCode = "No user found matching these credentials";
+        this.forceUpdate();
+      } else {
+        this.setState({
+          salt: messages[0].salt
+        }, function() {
+          var newPass = bcrypt.hashSync(this.state.password, this.state.salt);
+          this.setState({
+            password: newPass
+          }, function() {
+
+            fetch('http://87.248.16.163:15004/api/authenticate', {
+              method: 'POST',
+              body: JSON.stringify({email: this.state.email, password: this.state.password}),
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }).then((response) => response.json()).then((messages) => {
+
+              if (!cookies.get('user')) {
+                cookies.set('user', {username: messages.username, password: messages.password, id: messages.id, salt: messages.salt, }, {path: '/'})
+              }
+              console.log(messages.redirectUrl);
+              if (messages.redirectUrl) {
+                this.props.history.push(messages.redirectUrl);
+              }
+  */
+
+class Login extends Component {
+  state = {
+    password: '',
+    email: '',
+    salt: ''
+  }
+  errorCode = "";
+  /*
+  handleInputChange = (event) => {
+    const {value, name} = event.target;
+    this.setState({[name]: value});
+    console.log(this.state);
+  }
+
+  onSubmit = (event) => {
+    event.preventDefault();
+
+    this.props.history.push(`/login/${this.state.email}`);
+
+  }*/
+  handleInputChange = async (event) => {
+    const {value, name} = event.target;
+
+    await this.setState({[name]: value});
+
+  }
+
+  onSubmit = async (event) => {
+    event.preventDefault();
+
+    console.log(JSON.stringify({email: this.state.email}))
+    fetch('http://87.248.16.163:15004/api/login', {
+      method: 'POST',
+      body: JSON.stringify({email: this.state.email}),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    }).then((response) => response.json()).then((messages) => {
+
+      if (messages.length &lt; 1) {
+
+        this.errorCode = "No user found matching these credentials";
+        this.forceUpdate();
+      } else {
+        this.setState({
+          salt: messages[0].salt
+        }, function() {
+          var newPass = bcrypt.hashSync(this.state.password, this.state.salt);
+          this.setState({
+            password: newPass
+          }, function() {
+
+            fetch('http://87.248.16.163:15004/api/authenticate', {
+              method: 'POST',
+              body: JSON.stringify({email: this.state.email, password: this.state.password}),
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }).then((response) => response.json()).then((messages) => {
+
+              if (!cookies.get('user')) {
+                cookies.set('user', {username: messages.username, password: messages.password, id: messages.id, salt: messages.salt, }, {path: '/'})
+              }
+              console.log(messages.redirectUrl);
+              if (messages.redirectUrl) {
+                this.props.history.push(messages.redirectUrl);
+              }
+
+            }).catch(err => {
+              console.log(err);
+
+              var user = cookies.get('user');
+
+            });
+
+          });
+        });
+      }
+
+    });
+
+  }
+
+  render() {
+    cookies.remove('user', {path: '/'});
+    return (&lt;div>
+
+      &lt;Container>
+        &lt;Navbar style={{
+            width: '35rem',
+            margin: "auto"
+          }} bg="light" expand="lg">
+          &lt;Navbar.Brand style={{
+              margin: "auto"
+            }} href="#home">Yatzy&lt;/Navbar.Brand>
+        &lt;/Navbar>
+        &lt;Card style={{
+            width: '35rem',
+            margin: "auto"
+          }}>
+
+          &lt;Form onSubmit={this.onSubmit} style={{
+              width: "80%",
+              margin: "auto"
+            }}>
+            &lt;Card.Title>Log in&lt;/Card.Title>
+            &lt;Form.Group controlId="formBasicEmail">
+
+              &lt;Form.Control type="email" style={{
+                  margin: "auto"
+                }} name="email" placeholder="Enter email" value={this.state.email} onChange={this.handleInputChange}/>
+
+            &lt;/Form.Group>
+            &lt;Form.Group controlId="formBasicEmail">
+
+              &lt;Form.Control style={{
+                  margin: "auto"
+                }} type="password" name="password" placeholder="Enter password" value={this.state.password} onChange={this.handleInputChange}/>
+
+            &lt;/Form.Group>
+
+            &lt;Button variant="primary" style={{
+                width: "20%"
+              }} type="submit" value="Submit">
+              Log in
+            &lt;/Button>
+            &lt;h6>{this.errorCode}&lt;/h6>
+
+          &lt;/Form>
+          &lt;Card.Header>
+
+            &lt;Nav className="mr-auto" style={{
+                justifyContent: "center"
+              }}>
+              &lt;Nav.Link href="/register" style={{
+                  textAlign: "center"
+                }}>Not a registered user? Click here to create your account&lt;/Nav.Link>
+            &lt;/Nav>
+
+          &lt;/Card.Header>
+        &lt;/Card>
+      &lt;/Container>
+
+    &lt;/div>);
+  }
+
+}
+
+/**
+Component for rendering registering of accounts
+@component
+@example
+
+This class (component) renders a register page for the user, and handles hashing and sending the data to the server
+onSubmit = (event) => {
+  event.preventDefault();
+  var salt = bcrypt.genSaltSync(10);
+
+
+  this.setState({
+    salt: salt,
+    password: bcrypt.hashSync(this.state.password, salt)
+  }, function() {
+    fetch('http://87.248.16.163:15004/api/register', {
+      method: 'POST',
+      body: JSON.stringify(this.state),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    }).then((response) => response.json()).then((messages) => {
+
+      this.props.history.push(messages.redirectUrl);
+    });
+    !uses bcrypt for hashing before it is sent to the server!
+*/
+class Register extends Component {
+  state = {
+    password: '',
+    email: '',
+    hash: ''
+  }
+
+  handleInputChange = (event) => {
+    const {value, name} = event.target;
+    this.setState({[name]: value});
+  }
+
+  onSubmit = (event) => {
+    event.preventDefault();
+    var salt = bcrypt.genSaltSync(10);
+
+
+    this.setState({
+      salt: salt,
+      password: bcrypt.hashSync(this.state.password, salt)
+    }, function() {
+      fetch('http://87.248.16.163:15004/api/register', {
+        method: 'POST',
+        body: JSON.stringify(this.state),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }).then((response) => response.json()).then((messages) => {
+
+        this.props.history.push(messages.redirectUrl);
+      });
+
+    })
+
+  }
+
+  render() {
+
+    return (&lt;div>
+
+      &lt;Container className="text-center">
+        &lt;Card style={{
+            width: '35rem'
+          }}>
+          &lt;Nav variant="tabs" defaultActiveKey="#first">
+            &lt;Nav.Item>
+              &lt;Nav.Link href="/register">Register!&lt;/Nav.Link>
+            &lt;/Nav.Item>
+
+          &lt;/Nav>
+          &lt;Card.Header>Register!&lt;/Card.Header>
+          &lt;Form onSubmit={this.onSubmit}>
+            &lt;Form.Group controlId="formBasicEmail">
+              &lt;Form.Label>Email address&lt;/Form.Label>
+              &lt;Form.Control type="email" name="email" placeholder="Enter email" value={this.state.email} onChange={this.handleInputChange}/>
+
+            &lt;/Form.Group>
+            &lt;Form.Group controlId="formBasicEmail">
+              &lt;Form.Label>Password&lt;/Form.Label>
+              &lt;Form.Control type="password" name="password" placeholder="Enter password" value={this.state.password} onChange={this.handleInputChange}/>
+            &lt;/Form.Group>
+            &lt;Button variant="primary" type="submit" value="Submit">
+              Register
+            &lt;/Button>
+
+          &lt;/Form>
+        &lt;/Card>
+      &lt;/Container>
+
+    &lt;/div>);
+  }
+
+}
+
+class App extends Component {
+  render() {
+    return (&lt;div>
+
+      &lt;BrowserRouter>
+
+        &lt;Route exact="exact" path="/login" component={Login}/>
+        &lt;Route exact="exact" path="/login/:id" component={LoginAuth}/>
+        &lt;Route exact="exact" path="/register" component={Register}/>
+        &lt;Route exact="exact" path="/changePassword/:id" component={ChangePassword}/>
+        &lt;Route exact="exact" path="/" component={Home}/>
+        &lt;Route exact="exact" path="/gamelist/:id" component={Gamelist}/>
+        &lt;Route exact="exact" path="/game/:id" component={GameDetails}/>
+
+      &lt;/BrowserRouter>
+    &lt;/div>)
+  }
+
+}
+/**
+Class to print gamelist
+@component
+@example
+this class (component) renders the gamelist to the user, or redirects the user to the login page if he isn't logged in.
+*/
+class Gamelist extends Component {
+  state = {
+    response: '',
+    post: '',
+    responseToPost: ''
+  };
+
+  logOut() {
+    cookies.remove('user', {path: '/'});
+
+    this.props.history.push('/login');
+
+  }
+  componentDidMount() {
+    socket.on('cancer', result => {})
+    this.callApi().then(res => {
+
+      this.setState({response: res});
+
+    }).catch(err => {
+
+      var user = cookies.get('user');
+
+      if (!user || !user.id) {
+        return this.props.history.push('/login/');
+      }
+      this.props.history.push('/gamelist/' + user.id);
+      this.componentDidMount()
+
+    });
+
+
+  }
+
+  callApi = async () => {
+
+    let userAuth = cookies.get('user');
+
+    const response = await fetch(`http://87.248.16.163:15004/gamelist/${this.props.match.params.id}`, {headers: userAuth});
+    if (response.status !== 200) {
+      throw Error(response.message);
+    }
+
+    const body = await response.json();
+
+    return body;
+  };
+
+  onSubmit = (event) => {
+    event.preventDefault();
+
+    fetch(`http://87.248.16.163:15004/gamelist/${this.props.match.params.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({id: this.props.match.params.id})
+    }).then(res => {
+      this.props.history.push(`/gamelist/${this.props.match.params.id}`);
+      this.componentDidMount()
+    });
+
+  }
+
+  onJoin = (event) => {
+    this.props.history.push(`/game/${window.prompt("Please enter the game ID you would like to join")}`);
+  }
+
+  render() {
+    if (!this.state.response) {
+      return (&lt;p>still rendering&lt;/p>)
+    } else {
+      return (&lt;div>
+        &lt;Container style={{
+            maxWidth: "36rem",
+            paddingRight: 0
+          }}>
+          &lt;Nav className="justify-content-end">
+
+            &lt;Button variant="outline-primary" onClick={() => this.logOut()}>Log out&lt;/Button>
+
+          &lt;/Nav>
+          &lt;Card style={{
+              maxWidth: "35rem",
+              margin: "auto"
+            }}>
+
+
+
+            &lt;Navbar style={{
+                maxWidth: '35rem',
+                margin: "auto"
+              }} bg="light" expand="lg">
+              &lt;Navbar.Brand style={{
+                  margin: "auto"
+                }} href="">Yatzy&lt;/Navbar.Brand>
+            &lt;/Navbar>
+            &lt;Navbar style={{
+                maxWidth: '35rem',
+                margin: "auto"
+              }} bg="light" expand="lg">
+              &lt;Button variant="outline-secondary" type="submit" value="Submit" onClick={this.onSubmit}>
+                Start a new game
+              &lt;/Button>
+              &lt;Button variant="outline-secondary" type="submit" value="Submit" onClick={this.onJoin}>
+                Join a game
+              &lt;/Button>
+              &lt;Button variant="outline-secondary" type="submit" value="Submit" href={"/changePassword/" + this.props.match.params.id}>
+                Change your password
+              &lt;/Button>
+
+            &lt;/Navbar>
+
+            &lt;Table striped="striped" bordered="bordered" hover="hover">
+              &lt;thead>
+                &lt;tr>
+                  &lt;th>Game ID&lt;/th>
+                  &lt;th>Date&lt;/th>
+                  &lt;th>Rounds&lt;/th>
+                  &lt;th>Score&lt;/th>
+
+                &lt;/tr>
+              &lt;/thead>
+              &lt;tbody>
+
+                {
+                  this.state.response.map(game => {
+                    var d = game.date;
+                    {
+                      if (game.date) {
+                        var date = new Date(game.date).toUTCString()
+                      } else {
+                        var date = "no date specified"
+                      }
+                    } {
+                      console.log("date", game.date)
+                    }
+                    return (&lt;tr>
+                      &lt;td key={game.id}>{game.id}
+                      &lt;/td>
+                      &lt;td>{date}&lt;/td>
+                      &lt;td>{game.rounds}/15&lt;/td>
+                      &lt;td>{game.score}&lt;/td>
+                      &lt;td>
+                        &lt;Button variant="outline-secondary" href={"/game/" + game.multiplayerid}>
+                          Click me to open
+                        &lt;/Button>
+                      &lt;/td>
+                    &lt;/tr>)
+                  })
+                }
+              &lt;/tbody>
+            &lt;/Table>
+          &lt;/Card>
+        &lt;/Container>
+      &lt;/div>)
+    }
+  }
+}
+
+/**
+Class to render the game with its info to the user.
+@component
+@example
+This class (component) fetches all the necessary data from the server and renders it as a game on the page
+*/
+class GameDetails extends Component {
+  constructor(props, context) {
+    super(props, context);
+    this.rollDice = this.rollDice.bind(this);
+  }
+  state = {
+    response: '',
+    post: '',
+    responseToPost: '',
+    attempts: '',
+    uvalgt: '',
+    terninger: [],
+    savedDice: []
+  };
+  dice = {
+    attempts: '',
+    uvalgt: 5,
+    terninger: [],
+    savedDice: []
+  }
+  attempts = {};
+  results = {
+    ones: '',
+    twos: '',
+    threes: '',
+    fours: '',
+    fives: '',
+    sixes: '',
+    housePair: '',
+    houseTriplet: '',
+    one_pair: '',
+    two_pairs: '',
+    triplet: '',
+    four_of_a_kind: '',
+    small_straight: '',
+    large_straight: '',
+    house: '',
+    chance: '',
+    Yatzy: ''
+  }
+  updateVariable = {
+    field: '',
+    value: '',
+    player: '',
+    mpid: ''
+  }
+
+  componentDidMount() {
+    this.callApi().then(res => {
+
+      this.setState({response: res});
+
+      this.dice.attempts = res.attempts;
+
+      this.dice.terninger = [];
+      this.dice.savedDice = [];
+      var diceLoad = [];
+      var saveDiceLoad = [];
+
+      if (this.state.response[this.state.response[0].round].boardDice) {
+        diceLoad = this.state.response[this.state.response[0].round].boardDice.split(",");
+
+
+      }
+      if (this.state.response[this.state.response[0].round].savedDice) {
+        saveDiceLoad = this.state.response[this.state.response[0].round].savedDice.split(",");
+      }
+
+      diceLoad.map(dice => {
+        this.dice.terninger.push(parseInt(dice))
+      });
+      saveDiceLoad.map(dice => {
+        this.dice.savedDice.push(parseInt(dice))
+      });
+
+      this.setState({
+        terninger: this.dice.terninger,
+        savedDice: this.dice.savedDice
+      }, () => {
+
+      })
+
+      socket.on('reloadGame', test => {
+
+
+
+        this.callApi().then(res => {
+
+          this.setState({response: res});
+
+          this.dice.attempts = res.attempts;
+
+          this.dice.terninger = [];
+          this.dice.savedDice = [];
+          var diceLoad = [];
+          var saveDiceLoad = [];
+
+          if (this.state.response[this.state.response[0].round].boardDice) {
+            diceLoad = this.state.response[this.state.response[0].round].boardDice.split(",");
+
+          }
+          if (this.state.response[this.state.response[0].round].savedDice) {
+            saveDiceLoad = this.state.response[this.state.response[0].round].savedDice.split(",");
+          }
+
+          diceLoad.map(dice => {
+            this.dice.terninger.push(parseInt(dice))
+          });
+          saveDiceLoad.map(dice => {
+            this.dice.savedDice.push(parseInt(dice))
+          });
+
+          this.setState({
+            terninger: this.dice.terninger,
+            savedDice: this.dice.savedDice
+          }, () => {
+
+          })
+          this.calculateResult();
+
+        }).catch(err => {
+
+          var user = cookies.get('user');
+
+          if (!user || !user.id) {
+            return this.props.history.push('/login/');
+          }
+          this.props.history.push('/gamelist/' + user.id);
+
+        });
+        this.calculateResult();
+        this.forceUpdate();
+      })
+
+    }).catch(err => {
+
+      var user = cookies.get('user');
+
+      if (!user || !user.id) {
+        return this.props.history.push('/login/');
+      }
+      this.props.history.push('/gamelist/' + user.id);
+
+    });
+
+    this.calculateResult();
+  }
+
+  rollDice() {
+
+
+    if (cookies.get('user').id == this.state.response[this.state.response[0].round].player) {
+
+
+      if (this.state.response[this.state.response[0].round].attempts &lt;= 0) {
+        return (window.alert("out of attempts, save your round by clicking one of the empty fields in the scoreboard"))
+      }
+      this.dice.terninger = [];
+
+
+      for (var i = 0; i &lt; this.dice.uvalgt; i++) {
+        this.dice.terninger.push(Math.ceil(Math.random() * 6));
+      }
+      this.dice.attempts--;
+      if (this.dice.attempts == 0) {
+
+        for (var i = 0; i &lt; this.dice.terninger.length; i++) {
+
+          this.dice.savedDice.push(this.dice.terninger[i]);
+
+
+        }
+        this.dice.terninger = [];
+      }
+      fetch(`http://87.248.16.163:15004/storeattempt`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          id: this.state.response[this.state.response[0].round].id,
+          mpid: this.state.response[this.state.response[0].round].multiplayerid,
+          dice: this.dice.terninger.toString(),
+          savedDice: this.dice.savedDice.toString()
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
+
+      });
+
+      this.calculateResult();
+
+    }
+
+  }
+
+  calculateResult() {
+    var terningVerdier = this.state.savedDice;
+
+
+    // Resetter verdiene
+    var ones = 0;
+    var twos = 0;
+    var threes = 0;
+    var fours = 0;
+    var fives = 0;
+    var sixes = 0;
+    var housePair = 0;
+    var houseTriplet = 0;
+    var one_pair = 0;
+    var two_pairs = 0;
+    var triplet = 0;
+    var four_of_a_kind = 0;
+    var small_straight = 0;
+    var large_straight = 0;
+    var full_house = 0;
+    var chance = 0;
+    var Yatzy = 0;
+    this.results.ones = ones;
+    this.results.twos = twos;
+    this.results.threes = threes;
+    this.results.fours = fours;
+    this.results.fives = fives;
+    this.results.sixes = sixes;
+    this.results.one_pair = one_pair;
+    this.results.two_pairs = two_pairs;
+    this.results.triplet = triplet;
+    this.results.four_of_a_kind = four_of_a_kind;
+    this.results.small_straight = small_straight;
+    this.results.large_straight = large_straight;
+    this.results.full_house = full_house;
+    this.results.chance = chance;
+    this.results.Yatzy = Yatzy;
+
+    // Summerer alt fra ones til sixes
+    for (var i = 0; i &lt; terningVerdier.length; i++) {
+      if (terningVerdier[i] == 1) {
+        ones += 1;
+        this.results.ones = ones;
+      }
+      if (terningVerdier[i] == 2) {
+        twos += 2;
+        this.results.twos = twos;
+      }
+      if (terningVerdier[i] == 3) {
+        threes += 3;
+        this.results.threes = threes;
+      }
+      if (terningVerdier[i] == 4) {
+        fours += 4;
+        this.results.fours = fours;
+
+      }
+      if (terningVerdier[i] == 5) {
+        fives += 5;
+        this.results.fives = fives;
+      }
+      if (terningVerdier[i] == 6) {
+        sixes += 6;
+        this.results.sixes = sixes;
+      }
+    }
+
+    var verdiAntall = [];
+    verdiAntall = [
+      ones, twos / 2,
+      threes / 3,
+      fours / 4,
+      fives / 5,
+      sixes / 6
+    ];
+
+    var par = [];
+
+    for (var i = 0; i &lt; verdiAntall.length; i++) {
+      if (verdiAntall[i] >= 2) {
+
+        par.push(i + 1);
+
+      }
+    }
+    for (var i = 0; i &lt; verdiAntall.length; i++) {
+
+      //one pair
+      if (par.length >= 1) {
+        one_pair = par[par.length - 1] * 2;
+        this.results.one_pair = one_pair;
+      }
+      //Two pairs
+      if (par.length == 2) {
+        two_pairs = par[0] * 2 + par[1] * 2;
+        this.results.two_pairs = two_pairs;
+      }
+
+      //triplets
+      for (var i = 0; i &lt; verdiAntall.length; i++) {
+        if (verdiAntall[i] >= 3) {
+          let value = i + 1;
+          triplet = value * 3;
+          this.results.triplet = triplet;
+        }
+      }
+
+    }
+    // Four of a kind
+    for (var i = 0; i &lt; verdiAntall.length; i++) {
+      if (verdiAntall[i] >= 4) {
+        let value = i + 1;
+        four_of_a_kind = value * 4;
+        this.results.four_of_a_kind = four_of_a_kind;
+      }
+    }
+
+    // small Straight
+    var counterSmall = 0;
+    for (var i = 0; i &lt; verdiAntall.length - 1; i++) {
+      if (verdiAntall[i] == 0) {
+
+        break
+      } else {
+        counterSmall++
+      }
+      if (counterSmall == 5) {
+        small_straight = 15;
+        this.results.small_straight = small_straight;
+      }
+    }
+
+    var counterLarge = 0;
+    for (var i = 1; i &lt; verdiAntall.length; i++) {
+      if (verdiAntall[i] == 0) {
+
+        break
+      } else {
+        counterLarge++
+      }
+      if (counterLarge == 5) {
+        large_straight = 20;
+        this.results.large_straight = large_straight;
+      }
+    }
+
+    //House
+
+    if (par.length == 2 &amp;&amp; triplet >= 1) {
+      for (var i = 0; i &lt; verdiAntall.length; i++) {
+        if (verdiAntall[i] == 2) {
+          let y = i + 1;
+          housePair = y * 2;
+
+        } else if (verdiAntall[i] == 3) {
+          let y = i + 1;
+          houseTriplet = y * 3;
+        }
+      }
+      full_house = housePair + houseTriplet;
+      this.results.full_house = full_house;
+    }
+
+    //chance
+    chance = ones + twos + threes + fours + fives + sixes;
+    this.results.chance = chance;
+
+    //Yatzy
+    for (var i = 0; i &lt; verdiAntall.length; i++) {
+      if (verdiAntall[i] == 5) {
+        Yatzy = 50;
+        this.results.Yatzy = Yatzy;
+      }
+
+    }
+
+  }
+
+  goBack2() {
+    this.props.history.push(`/gamelist/${this.state.response.player}`);
+  }
+  logOut() {
+    cookies.remove('user', {path: '/'});
+
+    this.props.history.push('/login');
+  }
+
+  saveDice(diceIndex) {
+    if (cookies.get('user').id == this.state.response[this.state.response[0].round].player) {
+
+    var test = diceIndex.index;
+    this.dice.savedDice.push(this.dice.terninger[diceIndex.index])
+    this.dice.terninger.splice(diceIndex.index, 1);
+
+    this.dice.uvalgt = this.dice.terninger.length;
+
+    fetch(`http://87.248.16.163:15004/storedice`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        id: this.state.response[this.state.response[0].round].multiplayerid,
+        dice: this.dice.terninger.toString(),
+        savedDice: this.dice.savedDice.toString()
+      }),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+
+    });
+    this.calculateResult();
+  }
+  }
+  removeDice(diceIndex) {
+      if (cookies.get('user').id == this.state.response[this.state.response[0].round].player) {
+
+    var test = diceIndex.index;
+    this.dice.terninger.push(this.dice.savedDice[diceIndex.index])
+    this.dice.savedDice.splice(diceIndex.index, 1);
+    this.dice.uvalgt = this.dice.terninger.length;
+    fetch(`http://87.248.16.163:15004/storedice`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        id: this.state.response[this.state.response[0].round].multiplayerid,
+        dice: this.dice.terninger.toString(),
+        savedDice: this.dice.savedDice.toString()
+      }),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+
+    });
+    this.calculateResult();
+}
+  }
+  saveRound(value) {
+    this.updateVariable.player = cookies.get('user').id;
+
+    this.updateVariable.mpid = this.state.response[this.state.response[0].round].multiplayerid;
+    this.updateVariable.field = value;
+    this.updateVariable.value = this.results[value];
+
+    if (!this.state.response[value] &amp;&amp; this.state.response[value] != 0) {
+
+      this.dice.terninger = [];
+      this.dice.savedDice = [];
+      this.dice.uvalgt = 5;
+
+      fetch(`http://87.248.16.163:15004/game/${this.props.match.params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(this.updateVariable)
+      });
+
+      {
+        var image = "dice1";
+      }
+      const timer = setTimeout(() => {
+
+
+        this.componentDidMount();
+      }, 1500);
+      return() => clearTimeout(timer);
+
+    } else {
+      console.log("ikke tom");
+      return;
+    }
+  }
+
+  handleSubmit = async e => {
+    e.preventDefault();
+    const response = await fetch(`http://87.248.16.163:15004/game/${this.props.match.params.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({post: this.state.post})
+    });
+    const body = await response.text();
+
+    this.setState({responseToPost: body});
+  };
+
+  callApi = async () => {
+    let userAuth = cookies.get('user');
+    const response = await fetch(`http://87.248.16.163:15004/game/${this.props.match.params.id}`, {headers: userAuth});
+
+    const body = await response.json();
+    if (response.status !== 200)
+      throw Error(body.message);
+
+
+    return body;
+  };
+
+  render() {
+
+    if (!this.state.response) {
+      return (&lt;p>Still loading data&lt;/p>)
+    } else {
+      return (&lt;Container className="block-example border border-dark">
+        &lt;Navbar >
+          &lt;Nav className="mr-auto">
+
+            &lt;Button variant="outline-primary" onClick={() => this.goBack2()}>Go back&lt;/Button>
+            &lt;DropdownButton variant="outline-primary" id="dropdown-item-button" title="Need help? Click here to see how to play">
+              &lt;h5 className="block-example border border-dark" style={{
+                  padding: "1rem"
+                }}>How to play yatzy: You have three throws every round. To throw the dice click on the "Throw dice" button right above the scoreboards. The red box will contain the dice currently being thrown. If you click any of the dice you will move it to the green box, which won't be affected by a rethrow. Once you are happy with your dice or you are out of throws you can click on the row you would like to save the results in. This will lock this column for the rest of the game. After saving your round the top table is automatically changed to the current player playing, and a new round will start.&lt;/h5>
+            &lt;/DropdownButton>
+          &lt;/Nav>
+          &lt;Nav>
+
+            &lt;Button variant="outline-primary" onClick={() => this.logOut()}>Log out&lt;/Button>
+
+          &lt;/Nav>
+
+        &lt;/Navbar>
+
+        &lt;Navbar style={{
+
+            margin: "auto"
+          }} bg="light" expand="lg">
+
+          &lt;Navbar.Brand style={{
+              margin: "auto"
+            }} href="">Yatzy&lt;/Navbar.Brand>
+
+        &lt;/Navbar>
+        &lt;Navbar style={{
+
+            margin: "auto"
+          }} bg="light" expand="lg">
+
+          &lt;Navbar.Brand style={{
+              margin: "auto"
+            }} href="">{this.state.response[this.state.response[0].round].username}{"'s turn"}&lt;/Navbar.Brand>
+
+        &lt;/Navbar>
+        &lt;ListGroup horizontal="horizontal">
+          &lt;ListGroup>
+            &lt;Card style={{
+                background: "red",
+                minHeight: "150px",
+                maxWidth: "40rem"
+              }}>
+              &lt;Card.Title>Dice on board (These will be rerolled)&lt;/Card.Title>
+              &lt;Row>
+                {
+                  this.dice.terninger.map((dice, index) => {
+                    var diceIMG = 'dice' + dice
+
+                    return (&lt;Col xs="auto">&lt;Image onClick={() => this.saveDice({index})} className="picture" src={`/imagefolder/${dice}.png`} rounded="rounded"/>&lt;/Col>)
+                  })
+                }
+              &lt;/Row>
+            &lt;/Card>
+
+            &lt;Card style={{
+                background: "green",
+                minHeight: "150px",
+                maxWidth: "40rem"
+              }}>
+              &lt;Card.Title>Chosen dice (These won't be rerolled)&lt;/Card.Title>
+
+              &lt;Row>
+                {
+                  this.dice.savedDice.map((dice, index) => {
+                    return (&lt;Col xs="auto">&lt;Image onClick={() => this.removeDice({index})} className="picture" src={`/imagefolder/${dice}.png`} rounded="rounded"/>&lt;/Col>)
+                  })
+                }
+              &lt;/Row>
+
+            &lt;/Card>
+          &lt;/ListGroup>
+          &lt;Card style={{
+              maxWidth: "100%",
+              display: "flex",
+              justifyContent: "center"
+            }}>
+
+            &lt;Card.Title style={{
+                maxWidth: "100%",
+                display: "flex",
+                justifyContent: "center"
+              }}>
+              &lt;h1 style={{
+                  margin: "auto",
+                  fontSize: "10rem"
+                }}>{this.state.response[this.state.response[0].round].score}&lt;/h1>
+            &lt;/Card.Title>
+          &lt;/Card>
+
+        &lt;/ListGroup>
+
+        &lt;Card.Header style={{
+            display: "flex"
+          }}>
+          &lt;Button variant="outline-secondary" style={{
+              margin: "auto",
+              maxWidth: "12.5rem"
+            }} onClick={this.rollDice}>Roll dice, {this.state.response[this.state.response[0].round].attempts}
+            attempts remaining&lt;/Button>
+        &lt;/Card.Header>
+
+        &lt;Card style={{border: "solid 4px lightgrey", background:"skyblue"}}>
+          &lt;Card.Title>{this.state.response[this.state.response[0].round].username}
+            Scoreboard (Currently playing)&lt;/Card.Title>
+          &lt;Table variant="dark" striped="striped" bordered="bordered" hover="hover">
+            &lt;tbody>
+              &lt;tr onClick={() => this.saveRound('ones')}>
+                &lt;td className="td">Ones&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="ones" className="td noborder">{this.state.response[this.state.response[0].round].ones}&lt;/td>
+                  &lt;td className="cursive">({this.results.ones})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('twos')}>
+                &lt;td className="td">Twos&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="twos" className="td noborder">{this.state.response[this.state.response[0].round].twos}&lt;/td>
+                  &lt;td className="cursive">({this.results.twos})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('threes')}>
+                &lt;td className="td">Threes&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="threes" className="td noborder">{this.state.response[this.state.response[0].round].threes}&lt;/td>
+                  &lt;td className="cursive">({this.results.threes})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('fours')}>
+                &lt;td className="td">Fours&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="fours" className="td noborder">{this.state.response[this.state.response[0].round].fours}&lt;/td>
+                  &lt;td className="cursive">({this.results.fours})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('fives')}>
+                &lt;td className="td">Fives&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="fives" className="td noborder">{this.state.response[this.state.response[0].round].fives}&lt;/td>
+                  &lt;td className="cursive">({this.results.fives})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('sixes')}>
+                &lt;td className="td">Sixes&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="sixes" className="td noborder">{this.state.response[this.state.response[0].round].sixes}&lt;/td>
+                  &lt;td className="cursive">({this.results.sixes})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('one_pair')}>
+                &lt;td className="td">One Pair&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="one_pair" className="td noborder">{this.state.response[this.state.response[0].round].one_pair}&lt;/td>
+                  &lt;td className="cursive">({this.results.one_pair})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('two_pairs')}>
+                &lt;td className="td">Two pairs&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="two_pairs" className="td noborder">{this.state.response[this.state.response[0].round].two_pairs}&lt;/td>
+                  &lt;td className="cursive">({this.results.two_pairs})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('triplet')}>
+                &lt;td className="td">Triplets&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="triplet" className="td noborder">{this.state.response[this.state.response[0].round].triplet}&lt;/td>
+                  &lt;td className="cursive">({this.results.triplet})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr className="test" onClick={() => this.saveRound('four_of_a_kind')}>
+                &lt;td className="td">Four of a kind&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="four_of_a_kind" className="td noborder">{this.state.response[this.state.response[0].round].four_of_a_kind}&lt;/td>
+                  &lt;td className="cursive">({this.results.four_of_a_kind})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('small_straight')}>
+                &lt;td className="td">Small Straight&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="small_straight" className="td noborder">{this.state.response[this.state.response[0].round].small_straight}&lt;/td>
+                  &lt;td className="cursive">({this.results.small_straight})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('large_straight')}>
+                &lt;td className="td">Large Straight&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="large_straight" className="td noborder">{this.state.response[this.state.response[0].round].large_straight}&lt;/td>
+                  &lt;td className="cursive">({this.results.large_straight})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('chance')}>
+                &lt;td className="td">Chance&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="chance" className="td noborder">{this.state.response[this.state.response[0].round].chance}&lt;/td>
+                  &lt;td className="cursive">({this.results.chance})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('Yatzy')}>
+                &lt;td className="td">Yatzy&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="yatzy" className="td noborder">{this.state.response[this.state.response[0].round].yatzy}&lt;/td>
+                  &lt;td className="cursive">({this.results.Yatzy})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+              &lt;tr onClick={() => this.saveRound('full_house')}>
+                &lt;td className="td">Full house&lt;/td>
+                &lt;div className="td2">
+                  &lt;td id="full_house" className="td noborder">{this.state.response[this.state.response[0].round].full_house}&lt;/td>
+                  &lt;td className="cursive">({this.results.full_house})&lt;/td>
+                &lt;/div>
+              &lt;/tr>
+            &lt;/tbody>
+          &lt;/Table>
+        &lt;/Card>
+
+        {
+          this.state.response.map((game) => {
+
+            return (&lt;Card>
+              &lt;Card.Title>{game.username}
+                Scoreboard&lt;/Card.Title>
+              &lt;Table variant="dark" striped="striped" bordered="bordered" hover="hover">
+                &lt;tbody>
+                  &lt;tr onClick={() => this.saveRound('ones')}>
+                    &lt;td className="td">Ones&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="ones" className="td noborder">{game.ones}&lt;/td>
+                      &lt;td className="cursive">({this.results.ones})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('twos')}>
+                    &lt;td className="td">Twos&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="twos" className="td noborder">{game.twos}&lt;/td>
+                      &lt;td className="cursive">({this.results.twos})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('threes')}>
+                    &lt;td className="td">Threes&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="threes" className="td noborder">{game.threes}&lt;/td>
+                      &lt;td className="cursive">({this.results.fours})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('fours')}>
+                    &lt;td className="td">Fours&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="fours" className="td noborder">{game.fours}&lt;/td>
+                      &lt;td className="cursive">({this.results.fours})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('fives')}>
+                    &lt;td className="td">Fives&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="fives" className="td noborder">{game.fives}&lt;/td>
+                      &lt;td className="cursive">({this.results.fives})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('sixes')}>
+                    &lt;td className="td">Sixes&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="sixes" className="td noborder">{game.sixes}&lt;/td>
+                      &lt;td className="cursive">({this.results.sixes})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('one_pair')}>
+                    &lt;td className="td">One Pair&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="one_pair" className="td noborder">{game.one_pair}&lt;/td>
+                      &lt;td className="cursive">({this.results.one_pair})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('two_pairs')}>
+                    &lt;td className="td">Two pairs&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="two_pairs" className="td noborder">{game.two_pairs}&lt;/td>
+                      &lt;td className="cursive">({this.results.two_pairs})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('triplet')}>
+                    &lt;td className="td">Triplets&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="triplet" className="td noborder">{game.triplet}&lt;/td>
+                      &lt;td className="cursive">({this.results.triplet})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr className="test" onClick={() => this.saveRound('four_of_a_kind')}>
+                    &lt;td className="td">Four of a kind&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="four_of_a_kind" className="td noborder">{game.four_of_a_kind}&lt;/td>
+                      &lt;td className="cursive">({this.results.four_of_a_kind})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('small_straight')}>
+                    &lt;td className="td">Small Straight&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="small_straight" className="td noborder">{game.small_straight}&lt;/td>
+                      &lt;td className="cursive">({this.results.small_straight})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('large_straight')}>
+                    &lt;td className="td">Large Straight&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="large_straight" className="td noborder">{game.large_straight}&lt;/td>
+                      &lt;td className="cursive">({this.results.large_straight})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('chance')}>
+                    &lt;td className="td">Chance&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="chance" className="td noborder">{game.chance}&lt;/td>
+                      &lt;td className="cursive">({this.results.chance})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('Yatzy')}>
+                    &lt;td className="td">Yatzy&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="yatzy" className="td noborder">{game.yatzy}&lt;/td>
+                      &lt;td className="cursive">({this.results.Yatzy})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                  &lt;tr onClick={() => this.saveRound('full_house')}>
+                    &lt;td className="td">Full house&lt;/td>
+                    &lt;div className="td2">
+                      &lt;td id="full_house" className="td noborder">{game.full_house}&lt;/td>
+                      &lt;td className="cursive">({this.results.full_house})&lt;/td>
+                    &lt;/div>
+                  &lt;/tr>
+                &lt;/tbody>
+              &lt;/Table>
+            &lt;/Card>)
+          })
+        }
+
+
+      &lt;/Container>);
+    }
+  }
+
+}
+
+export default App;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="ChangePassword.html">ChangePassword</a></li><li><a href="GameDetails.html">GameDetails</a></li><li><a href="Gamelist.html">Gamelist</a></li><li><a href="Login.html">Login</a></li><li><a href="Register.html">Register</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Fri Apr 24 2020 18:53:02 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
